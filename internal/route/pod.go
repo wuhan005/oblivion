@@ -80,7 +80,7 @@ func CreatePod(ctx context.Context, user *db.User, image *db.Image, k8sClient *k
 
 	// Create pod in cluster.
 	namespace := image.Namespace
-	podName := fmt.Sprintf("gamebox-%s-%s", namespace, user.Domain)
+	podName := fmt.Sprintf("gamebox-%s-%s-pod", namespace, user.Domain)
 	podPort := image.Port
 	_, err = k8sClient.CoreV1().Pods(namespace).Create(ctx.Request().Context(), &v1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
@@ -110,12 +110,41 @@ func CreatePod(ctx context.Context, user *db.User, image *db.Image, k8sClient *k
 		return ctx.ServerError()
 	}
 
+	// Create service for pod.
+	serviceName := fmt.Sprintf("gamebox-%s-%s-service", namespace, user.Domain)
+	servicePort := intstr.FromInt(int(podPort))
+	_, err = k8sClient.CoreV1().Services(namespace).Create(ctx.Request().Context(), &v1.Service{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      serviceName,
+			Namespace: namespace,
+			Labels: map[string]string{
+				"team_token": user.Token,
+				"image_uid":  image.UID,
+			},
+		},
+		Spec: v1.ServiceSpec{
+			Ports: []v1.ServicePort{
+				{
+					Name:       serviceName,
+					Protocol:   v1.ProtocolTCP,
+					Port:       podPort,
+					TargetPort: servicePort,
+				},
+			},
+			Selector: map[string]string{
+				"team_token": user.Token,
+				"image_uid":  image.UID,
+			},
+		},
+	}, metav1.CreateOptions{})
+
 	address := user.Domain + "." + image.Domain
 
 	// Create ingress for pod with address domain.
+	ingressName := fmt.Sprintf("gamebox-%s-%s-ingress", namespace, user.Domain)
 	_, err = k8sClient.NetworkingV1beta1().Ingresses(namespace).Create(ctx.Request().Context(), &v1beta1.Ingress{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      podName,
+			Name:      ingressName,
 			Namespace: namespace,
 			Labels: map[string]string{
 				"team_token": user.Token,
@@ -132,7 +161,7 @@ func CreatePod(ctx context.Context, user *db.User, image *db.Image, k8sClient *k
 								{
 									Path: "/",
 									Backend: v1beta1.IngressBackend{
-										ServiceName: podName,
+										ServiceName: serviceName,
 										ServicePort: intstr.FromInt(int(podPort)),
 									},
 								},
@@ -177,8 +206,21 @@ func DeletePod(ctx context.Context, user *db.User, image *db.Image, k8sClient *k
 	}
 	pod := pods[0]
 
-	// Delete pods in cluster.
 	namespace := image.Namespace
+
+	// Delete ingress.
+	ingressName := fmt.Sprintf("gamebox-%s-%s-ingress", namespace, user.Domain)
+	if err := k8sClient.NetworkingV1beta1().Ingresses(namespace).Delete(ctx.Request().Context(), ingressName, metav1.DeleteOptions{}); err != nil {
+		log.Error("Failed to delete ingress: %v", err)
+	}
+
+	// Delete service.
+	serviceName := fmt.Sprintf("gamebox-%s-%s-service", namespace, user.Domain)
+	if err := k8sClient.CoreV1().Services(namespace).Delete(ctx.Request().Context(), serviceName, metav1.DeleteOptions{}); err != nil {
+		log.Error("Failed to delete service: %v", err)
+	}
+
+	// Delete pods in cluster.
 	if err := k8sClient.CoreV1().Pods(namespace).Delete(ctx.Request().Context(), pod.Name, metav1.DeleteOptions{}); err != nil {
 		log.Error("Failed to delete pod in cluster: %v", err)
 	}
