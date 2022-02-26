@@ -20,9 +20,6 @@ import (
 // Context represents context of a request.
 type Context struct {
 	flamego.Context
-
-	IsUser    bool
-	IsManager bool
 }
 
 func (c *Context) Success(data ...interface{}) error {

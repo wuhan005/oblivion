@@ -2,12 +2,12 @@ package main
 
 import (
 	"github.com/flamego/flamego"
-	"github.com/flamego/session"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	log "unknwon.dev/clog/v2"
 
 	"github.com/wuhan005/oblivion/internal/context"
+	"github.com/wuhan005/oblivion/internal/db"
 	"github.com/wuhan005/oblivion/internal/route"
 )
 
@@ -26,43 +26,24 @@ func main() {
 	if err != nil {
 		log.Fatal("Failed to get k8s client: %v", err)
 	}
+	database, err := db.Init()
+	if err != nil {
+		log.Fatal("Failed to init database: %v", err)
+	}
 
 	f := flamego.Classic()
 	f.Map(k8sClient)
 
-	sessioner := session.Sessioner()
-	f.Use(
-		sessioner,
-		context.Contexter(nil),
-	)
+	f.Use(context.Contexter(database))
 
-	f.Get("/{id}")
 	f.Group("/api", func() {
-		f.Combo("/{id}").
-			Get().
-			Post().
-			Delete()
-	})
-
-	f.Combo("/sign-in").Get().Post()
-	f.Group("/admin", func() {
-		f.Get("/")
-
-		f.Group("/user", func() {
-			f.Combo("/").Get().Post()
-			f.Post("/delete")
-			f.Post("/batch")
-		})
-
-		f.Group("/pod", func() {
-			f.Combo("/").Get().Post()
-			f.Post("/delete")
-		})
-
-		f.Group("/image", func() {
-			f.Combo("/").Get(route.ListImages).Post()
-		})
-	})
+		f.Group("/env/{uid}", func() {
+			f.Combo("").
+				Get(route.GetPod).
+				Post(route.CreatePod).
+				Delete(route.DeletePod)
+		}, route.Enver)
+	}, route.UserAuther)
 
 	f.Run(4000)
 }

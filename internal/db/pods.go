@@ -21,7 +21,7 @@ var Pods PodsStore
 
 // PodsStore is the persistent interface for pods.
 type PodsStore interface {
-	Create(ctx context.Context, opts CreatePodOptions) error
+	Create(ctx context.Context, opts CreatePodOptions) (*Pod, error)
 	Get(ctx context.Context, opts GetPodsOptions) ([]*Pod, error)
 	GetByID(ctx context.Context, id uint) (*Pod, error)
 	Delete(ctx context.Context, id uint) error
@@ -35,11 +35,12 @@ func NewPodsStore(db *gorm.DB) PodsStore {
 type Pod struct {
 	gorm.Model
 
-	UserID  uint   `uniqueIndex:pod_user_image_unique_idx, where:deleted_at IS NULL`
-	User    *User  `gorm:"-"`
-	ImageID uint   `uniqueIndex:pod_user_image_unique_idx, where:deleted_at IS NULL`
-	Image   *Image `gorm:"-"`
+	UserID  uint   `uniqueIndex:"pod_user_image_unique_idx, where:deleted_at IS NULL" json:"-"`
+	User    *User  `gorm:"-" json:"-"`
+	ImageID uint   `uniqueIndex:"pod_user_image_unique_idx, where:deleted_at IS NULL" json:"-"`
+	Image   *Image `gorm:"-" json:"-"`
 
+	Name      string
 	Address   string
 	ExpiredAt time.Time
 }
@@ -51,25 +52,28 @@ type pods struct {
 type CreatePodOptions struct {
 	UserID    uint
 	ImageID   uint
+	Name      string
 	Address   string
 	ExpiredAt time.Time
 }
 
 var ErrDuplicatePod = errors.New("duplicate pod")
 
-func (db *pods) Create(ctx context.Context, opts CreatePodOptions) error {
-	if err := db.WithContext(ctx).Create(&Pod{
+func (db *pods) Create(ctx context.Context, opts CreatePodOptions) (*Pod, error) {
+	pod := &Pod{
 		UserID:    opts.UserID,
 		ImageID:   opts.ImageID,
+		Name:      opts.Name,
 		Address:   opts.Address,
 		ExpiredAt: opts.ExpiredAt,
-	}).Error; err != nil {
-		if dbutil.IsUniqueViolation(err, "pod_user_image_unique_idx") {
-			return ErrDuplicateUser
-		}
-		return err
 	}
-	return nil
+	if err := db.WithContext(ctx).Create(pod).Error; err != nil {
+		if dbutil.IsUniqueViolation(err, "pod_user_image_unique_idx") {
+			return nil, ErrDuplicateUser
+		}
+		return nil, err
+	}
+	return pod, nil
 }
 
 type GetPodsOptions struct {
@@ -85,7 +89,7 @@ func (db *pods) Get(ctx context.Context, opts GetPodsOptions) ([]*Pod, error) {
 	}).Find(&pods).Error; err != nil {
 		return nil, err
 	}
-	return pods, nil
+	return db.loadAttributes(ctx, pods...)
 }
 
 var ErrPodsNotFound = errors.New("pods dose not exist")
@@ -98,9 +102,51 @@ func (db *pods) GetByID(ctx context.Context, id uint) (*Pod, error) {
 		}
 		return nil, err
 	}
-	return &pod, nil
+	pods, err := db.loadAttributes(ctx, &pod)
+	if err != nil {
+		return nil, errors.Wrap(err, "load attributes")
+	}
+	return pods[0], nil
 }
 
 func (db *pods) Delete(ctx context.Context, id uint) error {
 	return db.WithContext(ctx).Delete(&Pod{}, id).Error
+}
+
+func (db *pods) loadAttributes(ctx context.Context, pods ...*Pod) ([]*Pod, error) {
+	userIDs := map[uint]struct{}{}
+	imageIDs := map[uint]struct{}{}
+	for _, pod := range pods {
+		userIDs[pod.UserID] = struct{}{}
+		imageIDs[pod.ImageID] = struct{}{}
+	}
+
+	// Get pods' users.
+	usersStore := NewUsersStore(db.DB)
+	userSets := map[uint]*User{}
+	for userID := range userIDs {
+		var err error
+		userSets[userID], err = usersStore.GetByID(ctx, userID)
+		if err != nil {
+			return nil, errors.Wrap(err, "get users")
+		}
+	}
+
+	// Get pods' images.
+	imagesStore := NewImagesStore(db.DB)
+	imageSets := map[uint]*Image{}
+	for imageID := range imageIDs {
+		var err error
+		imageSets[imageID], err = imagesStore.GetByID(ctx, imageID)
+		if err != nil {
+			return nil, errors.Wrap(err, "get image")
+		}
+	}
+
+	for _, pod := range pods {
+		pod.User = userSets[pod.UserID]
+		pod.Image = imageSets[pod.ImageID]
+	}
+
+	return pods, nil
 }

@@ -8,6 +8,7 @@ import (
 	"context"
 
 	"github.com/pkg/errors"
+	"github.com/thanhpk/randstr"
 	"gorm.io/gorm"
 
 	"github.com/wuhan005/oblivion/internal/dbutil"
@@ -28,6 +29,8 @@ type UsersStore interface {
 	GetByID(ctx context.Context, id uint) (*User, error)
 	// GetByToken returns a user by its token.
 	GetByToken(ctx context.Context, token string) (*User, error)
+	// GetByDomain returns a user by its domain.
+	GetByDomain(ctx context.Context, domain string) (*User, error)
 	// Delete deletes a user by its ID.
 	Delete(ctx context.Context, id uint) error
 }
@@ -40,7 +43,8 @@ func NewUsersStore(db *gorm.DB) UsersStore {
 type User struct {
 	gorm.Model
 
-	Token string `uniqueIndex:user_token_unique_idx, where:deleted_at IS NULL`
+	Token  string `uniqueIndex:"user_token_unique_idx, where:deleted_at IS NULL"`
+	Domain string `uniqueIndex:"user_domain_unique_idx, where:deleted_at IS NULL"`
 }
 
 type users struct {
@@ -55,7 +59,8 @@ var ErrDuplicateUser = errors.New("duplicate user")
 
 func (db *users) Create(ctx context.Context, opts CreateUserOptions) error {
 	if err := db.WithContext(ctx).Create(&User{
-		Token: opts.Token,
+		Token:  opts.Token,
+		Domain: randstr.String(8),
 	}).Error; err != nil {
 		if dbutil.IsUniqueViolation(err, "user_token_unique_idx") {
 			return ErrDuplicateUser
@@ -73,7 +78,8 @@ func (db *users) BatchCreate(ctx context.Context, opts BatchCreateOptions) error
 	return db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		for _, token := range opts.Tokens {
 			if err := tx.Create(&User{
-				Token: token,
+				Token:  token,
+				Domain: randstr.String(8),
 			}).Error; err != nil {
 				if dbutil.IsUniqueViolation(err, "user_token_unique_idx") {
 					return ErrDuplicateUser
@@ -101,6 +107,17 @@ func (db *users) GetByID(ctx context.Context, id uint) (*User, error) {
 func (db *users) GetByToken(ctx context.Context, token string) (*User, error) {
 	var user User
 	if err := db.WithContext(ctx).Where("token = ?", token).First(&user).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrUserNotFound
+		}
+		return nil, err
+	}
+	return &user, nil
+}
+
+func (db *users) GetByDomain(ctx context.Context, domain string) (*User, error) {
+	var user User
+	if err := db.WithContext(ctx).Where("domain = ?", domain).First(&user).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, ErrUserNotFound
 		}

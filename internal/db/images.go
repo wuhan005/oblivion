@@ -23,6 +23,7 @@ var Images ImagesStore
 type ImagesStore interface {
 	Create(ctx context.Context, opts CreateImageOptions) error
 	GetByID(ctx context.Context, id uint) (*Image, error)
+	GetByUID(ctx context.Context, uid string) (*Image, error)
 	Update(ctx context.Context, id uint, opts UpdateImageOptions) error
 	Delete(ctx context.Context, id uint) error
 }
@@ -36,7 +37,9 @@ type Image struct {
 	gorm.Model
 
 	UID       string
-	Name      string `uniqueIndex:image_name_unique_idx, where:deleted_at IS NULL`
+	Name      string `uniqueIndex:"image_name_unique_idx, where:deleted_at IS NULL"`
+	Domain    string
+	Port      int32
 	Namespace string
 }
 
@@ -46,6 +49,8 @@ type images struct {
 
 type CreateImageOptions struct {
 	Name      string
+	Domain    string
+	Port      int32
 	Namespace string
 }
 
@@ -55,10 +60,12 @@ func (db *images) Create(ctx context.Context, opts CreateImageOptions) error {
 	if err := db.WithContext(ctx).Create(&Image{
 		UID:       uuid.New().String(),
 		Name:      opts.Name,
+		Domain:    opts.Domain,
+		Port:      opts.Port,
 		Namespace: opts.Namespace,
 	}).Error; err != nil {
 		if dbutil.IsUniqueViolation(err, "image_name_unique_idx") {
-			return ErrDuplicateUser
+			return ErrDuplicateImage
 		}
 		return err
 	}
@@ -78,8 +85,21 @@ func (db *images) GetByID(ctx context.Context, id uint) (*Image, error) {
 	return &image, nil
 }
 
+func (db *images) GetByUID(ctx context.Context, uid string) (*Image, error) {
+	var image Image
+	if err := db.WithContext(ctx).Where("uid = ?", uid).First(&image).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrImageNotFound
+		}
+		return nil, err
+	}
+	return &image, nil
+}
+
 type UpdateImageOptions struct {
 	Name      string
+	Domain    string
+	Port      int32
 	Namespace string
 }
 
@@ -93,6 +113,8 @@ func (db *images) Update(ctx context.Context, id uint, opts UpdateImageOptions) 
 	}
 	return db.WithContext(ctx).Where("id = ?", id).Updates(&Image{
 		Name:      opts.Name,
+		Domain:    opts.Domain,
+		Port:      opts.Port,
 		Namespace: opts.Namespace,
 	}).Error
 }
