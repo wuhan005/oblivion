@@ -167,6 +167,10 @@ func CreatePod(ctx context.Context, user *db.User, image *db.Image, k8sClient *k
 									Backend: v1beta1.IngressBackend{
 										ServiceName: serviceName,
 										ServicePort: intstr.FromInt(int(podPort)),
+										Resource: &v1.TypedLocalObjectReference{
+											Kind: "Service",
+											Name: serviceName,
+										},
 									},
 								},
 							},
