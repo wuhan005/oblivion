@@ -32,10 +32,12 @@ func main() {
 	}
 
 	f := flamego.Classic()
+	f.Use(flamego.Renderer())
 	f.Map(k8sClient)
 
 	f.Use(context.Contexter(database))
 
+	f.Get("/health", func() {})
 	f.Group("/api", func() {
 		f.Group("/env/{uid}", func() {
 			f.Combo("").
