@@ -10,7 +10,6 @@ import (
 	"net/http"
 
 	"github.com/flamego/flamego"
-	"github.com/flamego/session"
 	"gorm.io/gorm"
 	log "unknwon.dev/clog/v2"
 
@@ -73,7 +72,7 @@ func (c *Context) Error(errorCode uint, message string, v ...interface{}) error 
 
 // Contexter initializes a classic context for a request.
 func Contexter(gormDB *gorm.DB) flamego.Handler {
-	return func(ctx flamego.Context, session session.Session) {
+	return func(ctx flamego.Context) {
 		c := Context{
 			Context: ctx,
 		}
