@@ -137,6 +137,10 @@ func CreatePod(ctx context.Context, user *db.User, image *db.Image, k8sClient *k
 			},
 		},
 	}, metav1.CreateOptions{})
+	if err != nil {
+		log.Error("Failed to create service: %v", err)
+		return ctx.ServerError()
+	}
 
 	address := user.Domain + "." + image.Domain
 
