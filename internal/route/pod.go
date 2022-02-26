@@ -89,7 +89,6 @@ func CreatePod(ctx context.Context, user *db.User, image *db.Image, k8sClient *k
 			Labels: map[string]string{
 				"team_token": user.Token,
 				"image_uid":  image.UID,
-				"image_name": image.Name,
 			},
 		},
 		Spec: v1.PodSpec{
@@ -121,7 +120,6 @@ func CreatePod(ctx context.Context, user *db.User, image *db.Image, k8sClient *k
 			Labels: map[string]string{
 				"team_token": user.Token,
 				"image_uid":  image.UID,
-				"image_name": image.Name,
 			},
 		},
 		Spec: v1beta1.IngressSpec{
