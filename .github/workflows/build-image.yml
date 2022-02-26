@@ -17,7 +17,7 @@ jobs:
         uses: actions/checkout@v2
 
       - name: Build binary
-        run: go build -v -ldflags "-w -s -extldflags '-static'" -o oblivion-server ./cmd/oblivion-server/
+        run: go build -v -ldflags "-w -s -extldflags '-static'" -o oblivion-server ./cmd/oblivion-server/main.go
 
       - name: Build Image & Publish to Registry
         uses: elgohr/Publish-Docker-Github-Action@master
