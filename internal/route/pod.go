@@ -82,6 +82,7 @@ func CreatePod(ctx context.Context, user *db.User, image *db.Image, k8sClient *k
 	namespace := image.Namespace
 	podName := fmt.Sprintf("gamebox-%s-%s-pod", namespace, user.Domain)
 	podPort := image.Port
+	falseVal := false
 	_, err = k8sClient.CoreV1().Pods(namespace).Create(ctx.Request().Context(), &v1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      podName,
@@ -101,8 +102,20 @@ func CreatePod(ctx context.Context, user *db.User, image *db.Image, k8sClient *k
 							ContainerPort: podPort,
 						},
 					},
+					ImagePullPolicy: v1.PullIfNotPresent,
+					SecurityContext: &v1.SecurityContext{
+						AllowPrivilegeEscalation: &falseVal,
+					},
+					Resources: v1.ResourceRequirements{
+						Limits: v1.ResourceList{
+							"cpu":    "",
+							"memory": "",
+						},
+					},
 				},
 			},
+			AutomountServiceAccountToken: &falseVal,
+			EnableServiceLinks:           &falseVal,
 		},
 	}, metav1.CreateOptions{})
 	if err != nil {
