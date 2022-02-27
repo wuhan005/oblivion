@@ -218,7 +218,7 @@ func DeletePod(ctx context.Context, user *db.User, image *db.Image, k8sClient *k
 
 	// Delete ingress.
 	ingressName := fmt.Sprintf("gamebox-%s-%s-ingress", namespace, user.Domain)
-	if err := k8sClient.NetworkingV1beta1().Ingresses(namespace).Delete(ctx.Request().Context(), ingressName, metav1.DeleteOptions{}); err != nil {
+	if err := k8sClient.NetworkingV1().Ingresses(namespace).Delete(ctx.Request().Context(), ingressName, metav1.DeleteOptions{}); err != nil {
 		log.Error("Failed to delete ingress: %v", err)
 	}
 
