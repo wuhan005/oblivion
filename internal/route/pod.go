@@ -122,8 +122,8 @@ func CreatePod(ctx context.Context, user *db.User, image *db.Image, k8sClient *k
 					},
 					Resources: v1.ResourceRequirements{
 						Limits: v1.ResourceList{
-							v1.ResourceCPU:    resource.MustParse(limitation.RequestsCPU),
-							v1.ResourceMemory: resource.MustParse(limitation.RequestsMemory),
+							v1.ResourceCPU:    resource.MustParse(limitation.LimitsCPU),
+							v1.ResourceMemory: resource.MustParse(limitation.LimitsMemory),
 						},
 						Requests: v1.ResourceList{
 							v1.ResourceCPU:    resource.MustParse(limitation.RequestsCPU),
