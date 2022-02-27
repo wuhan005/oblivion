@@ -167,9 +167,11 @@ func CreatePod(ctx context.Context, user *db.User, image *db.Image, k8sClient *k
 									Path:     "/",
 									PathType: &pathType,
 									Backend: networkingv1.IngressBackend{
-										Resource: &v1.TypedLocalObjectReference{
-											Kind: "Service",
+										Service: &networkingv1.IngressServiceBackend{
 											Name: serviceName,
+											Port: networkingv1.ServiceBackendPort{
+												Number: podPort,
+											},
 										},
 									},
 								},
