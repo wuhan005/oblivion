@@ -146,6 +146,7 @@ func CreatePod(ctx context.Context, user *db.User, image *db.Image, k8sClient *k
 
 	// Create ingress for pod with address domain.
 	ingressName := fmt.Sprintf("gamebox-%s-%s-ingress", namespace, user.Domain)
+	pathType := networkingv1.PathType("Prefix")
 	_, err = k8sClient.NetworkingV1().Ingresses(namespace).Create(ctx.Request().Context(), &networkingv1.Ingress{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      ingressName,
@@ -163,7 +164,8 @@ func CreatePod(ctx context.Context, user *db.User, image *db.Image, k8sClient *k
 						HTTP: &networkingv1.HTTPIngressRuleValue{
 							Paths: []networkingv1.HTTPIngressPath{
 								{
-									Path: "/",
+									Path:     "/",
+									PathType: &pathType,
 									Backend: networkingv1.IngressBackend{
 										Service: &networkingv1.IngressServiceBackend{
 											Name: serviceName,
