@@ -11,6 +11,7 @@ import (
 	"github.com/pkg/errors"
 	v1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
@@ -80,18 +81,14 @@ func CreatePod(ctx context.Context, user *db.User, image *db.Image, k8sClient *k
 	}
 
 	namespace := fmt.Sprintf("%s-%s", image.UID, user.Domain)
-
-	_, err = k8sClient.CoreV1().Namespaces().Get(ctx.Request().Context(), namespace, metav1.GetOptions{})
-	if err != nil {
-		_, err := k8sClient.CoreV1().Namespaces().Create(ctx.Request().Context(), &v1.Namespace{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: namespace,
-			},
-		}, metav1.CreateOptions{})
-		if err != nil {
-			log.Error("Failed to create namespace: %v", err)
-			return ctx.ServerError()
-		}
+	_, err = k8sClient.CoreV1().Namespaces().Create(ctx.Request().Context(), &v1.Namespace{
+		ObjectMeta: metav1.ObjectMeta{
+			GenerateName: namespace,
+		},
+	}, metav1.CreateOptions{})
+	if err != nil && !k8serrors.IsAlreadyExists(err) {
+		log.Error("Failed to create namespace: %v", err)
+		return ctx.ServerError()
 	}
 
 	// Create pod in cluster.
