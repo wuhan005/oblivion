@@ -10,7 +10,7 @@ import (
 
 	"github.com/pkg/errors"
 	v1 "k8s.io/api/core/v1"
-	"k8s.io/api/networking/v1beta1"
+	networkingv1 "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/kubernetes"
@@ -146,7 +146,7 @@ func CreatePod(ctx context.Context, user *db.User, image *db.Image, k8sClient *k
 
 	// Create ingress for pod with address domain.
 	ingressName := fmt.Sprintf("gamebox-%s-%s-ingress", namespace, user.Domain)
-	_, err = k8sClient.NetworkingV1beta1().Ingresses(namespace).Create(ctx.Request().Context(), &v1beta1.Ingress{
+	_, err = k8sClient.NetworkingV1().Ingresses(namespace).Create(ctx.Request().Context(), &networkingv1.Ingress{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      ingressName,
 			Namespace: namespace,
@@ -155,18 +155,23 @@ func CreatePod(ctx context.Context, user *db.User, image *db.Image, k8sClient *k
 				"image_uid":  image.UID,
 			},
 		},
-		Spec: v1beta1.IngressSpec{
-			Rules: []v1beta1.IngressRule{
+		Spec: networkingv1.IngressSpec{
+			Rules: []networkingv1.IngressRule{
 				{
 					Host: address,
-					IngressRuleValue: v1beta1.IngressRuleValue{
-						HTTP: &v1beta1.HTTPIngressRuleValue{
-							Paths: []v1beta1.HTTPIngressPath{
+					IngressRuleValue: networkingv1.IngressRuleValue{
+						HTTP: &networkingv1.HTTPIngressRuleValue{
+							Paths: []networkingv1.HTTPIngressPath{
 								{
 									Path: "/",
-									Backend: v1beta1.IngressBackend{
-										ServiceName: serviceName,
-										ServicePort: intstr.FromInt(int(podPort)),
+									Backend: networkingv1.IngressBackend{
+										Service: &networkingv1.IngressServiceBackend{
+											Name: serviceName,
+											Port: networkingv1.ServiceBackendPort{
+												Name:   serviceName,
+												Number: podPort,
+											},
+										},
 										Resource: &v1.TypedLocalObjectReference{
 											Kind: "Service",
 											Name: serviceName,
