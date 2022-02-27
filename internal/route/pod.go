@@ -11,6 +11,7 @@ import (
 	"github.com/pkg/errors"
 	v1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/kubernetes"
@@ -78,11 +79,26 @@ func CreatePod(ctx context.Context, user *db.User, image *db.Image, k8sClient *k
 		return ctx.Error(40300, "Pod has been created")
 	}
 
+	namespace := fmt.Sprintf("%s-%s", image.UID, user.Domain)
+
+	_, err = k8sClient.CoreV1().Namespaces().Get(ctx.Request().Context(), namespace, metav1.GetOptions{})
+	if err != nil {
+		_, err := k8sClient.CoreV1().Namespaces().Create(ctx.Request().Context(), &v1.Namespace{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: namespace,
+			},
+		}, metav1.CreateOptions{})
+		if err != nil {
+			log.Error("Failed to create namespace: %v", err)
+			return ctx.ServerError()
+		}
+	}
+
 	// Create pod in cluster.
-	namespace := image.Namespace
-	podName := fmt.Sprintf("gamebox-%s-%s-pod", namespace, user.Domain)
+	podName := fmt.Sprintf("gamebox-%s-%s-pod", image.UID, user.Domain)
 	podPort := image.Port
 	falseVal := false
+	limitation := image.GetLimitation()
 	_, err = k8sClient.CoreV1().Pods(namespace).Create(ctx.Request().Context(), &v1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      podName,
@@ -106,12 +122,16 @@ func CreatePod(ctx context.Context, user *db.User, image *db.Image, k8sClient *k
 					SecurityContext: &v1.SecurityContext{
 						AllowPrivilegeEscalation: &falseVal,
 					},
-					//Resources: v1.ResourceRequirements{
-					//	Limits: v1.ResourceList{
-					//		"cpu":    "",
-					//		"memory": "",
-					//	},
-					//},
+					Resources: v1.ResourceRequirements{
+						Limits: v1.ResourceList{
+							v1.ResourceCPU:    resource.MustParse(limitation.RequestsCPU),
+							v1.ResourceMemory: resource.MustParse(limitation.RequestsMemory),
+						},
+						Requests: v1.ResourceList{
+							v1.ResourceCPU:    resource.MustParse(limitation.RequestsCPU),
+							v1.ResourceMemory: resource.MustParse(limitation.RequestsMemory),
+						},
+					},
 				},
 			},
 			AutomountServiceAccountToken: &falseVal,
@@ -229,7 +249,7 @@ func DeletePod(ctx context.Context, user *db.User, image *db.Image, k8sClient *k
 	}
 	pod := pods[0]
 
-	namespace := image.Namespace
+	namespace := fmt.Sprintf("%s-%s", image.UID, user.Domain)
 
 	// Delete ingress.
 	ingressName := fmt.Sprintf("gamebox-%s-%s-ingress", namespace, user.Domain)
