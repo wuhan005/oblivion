@@ -106,12 +106,12 @@ func CreatePod(ctx context.Context, user *db.User, image *db.Image, k8sClient *k
 					SecurityContext: &v1.SecurityContext{
 						AllowPrivilegeEscalation: &falseVal,
 					},
-					Resources: v1.ResourceRequirements{
-						Limits: v1.ResourceList{
-							"cpu":    "",
-							"memory": "",
-						},
-					},
+					//Resources: v1.ResourceRequirements{
+					//	Limits: v1.ResourceList{
+					//		"cpu":    "",
+					//		"memory": "",
+					//	},
+					//},
 				},
 			},
 			AutomountServiceAccountToken: &falseVal,
