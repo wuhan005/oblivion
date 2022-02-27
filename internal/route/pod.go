@@ -81,11 +81,12 @@ func CreatePod(ctx context.Context, user *db.User, image *db.Image, k8sClient *k
 	}
 
 	namespace := fmt.Sprintf("%s-%s", image.UID, user.Domain)
-	_, err = k8sClient.CoreV1().Namespaces().Create(ctx.Request().Context(), &v1.Namespace{
-		ObjectMeta: metav1.ObjectMeta{
-			GenerateName: namespace,
-		},
-	}, metav1.CreateOptions{})
+	_, err = k8sClient.CoreV1().Namespaces().Create(ctx.Request().Context(),
+		&v1.Namespace{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: namespace,
+			},
+		}, metav1.CreateOptions{})
 	if err != nil && !k8serrors.IsAlreadyExists(err) {
 		log.Error("Failed to create namespace: %v", err)
 		return ctx.ServerError()
