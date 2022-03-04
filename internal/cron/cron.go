@@ -41,6 +41,7 @@ func start(k8sClient *kubernetes.Clientset) {
 			if err := db.Pods.Delete(ctx, pod.ID); err != nil {
 				log.Error("Failed to automatically delete pod: %v", err)
 			}
+			log.Trace("Delete expired pod, namespace: %v", namespace)
 		}
 		time.Sleep(5 * time.Second)
 	}
