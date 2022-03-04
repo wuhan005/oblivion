@@ -32,7 +32,7 @@ func main() {
 	}
 
 	k8sClient, err := kubernetes.NewForConfig(&rest.Config{
-		Host: "http://" + net.JoinHostPort(host, port),
+		Host: "https://" + net.JoinHostPort(host, port),
 		TLSClientConfig: rest.TLSClientConfig{
 			Insecure: true,
 		},
