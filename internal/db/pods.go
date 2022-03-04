@@ -24,6 +24,7 @@ type PodsStore interface {
 	Create(ctx context.Context, opts CreatePodOptions) (*Pod, error)
 	Get(ctx context.Context, opts GetPodsOptions) ([]*Pod, error)
 	GetByID(ctx context.Context, id uint) (*Pod, error)
+	GetExpired(ctx context.Context) ([]*Pod, error)
 	Delete(ctx context.Context, id uint) error
 }
 
@@ -107,6 +108,14 @@ func (db *pods) GetByID(ctx context.Context, id uint) (*Pod, error) {
 		return nil, errors.Wrap(err, "load attributes")
 	}
 	return pods[0], nil
+}
+
+func (db *pods) GetExpired(ctx context.Context) ([]*Pod, error) {
+	var pods []*Pod
+	if err := db.WithContext(ctx).Model(&Pod{}).Where("pods.expired_at < CURRENT_DATE").Find(&pods).Error; err != nil {
+		return nil, err
+	}
+	return db.loadAttributes(ctx, pods...)
 }
 
 func (db *pods) Delete(ctx context.Context, id uint) error {

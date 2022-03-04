@@ -11,6 +11,7 @@ import (
 	log "unknwon.dev/clog/v2"
 
 	"github.com/wuhan005/oblivion/internal/context"
+	"github.com/wuhan005/oblivion/internal/cron"
 	"github.com/wuhan005/oblivion/internal/db"
 	"github.com/wuhan005/oblivion/internal/route"
 )
@@ -46,6 +47,8 @@ func main() {
 	if err != nil {
 		log.Fatal("Failed to init database: %v", err)
 	}
+
+	cron.Start(k8sClient)
 
 	f := flamego.Classic()
 	f.Use(flamego.Renderer())
