@@ -133,7 +133,7 @@ func CreatePod(ctx context.Context, user *db.User, image *db.Image, k8sClient *k
 			EnableServiceLinks:           &falseVal,
 		},
 	}, metav1.CreateOptions{})
-	if err != nil {
+	if err != nil && !k8serrors.IsAlreadyExists(err) {
 		log.Error("Failed to create pod in cluster: %v", err)
 		return ctx.ServerError()
 	}
@@ -165,7 +165,7 @@ func CreatePod(ctx context.Context, user *db.User, image *db.Image, k8sClient *k
 			},
 		},
 	}, metav1.CreateOptions{})
-	if err != nil {
+	if err != nil && !k8serrors.IsAlreadyExists(err) {
 		log.Error("Failed to create service: %v", err)
 		return ctx.ServerError()
 	}
@@ -210,7 +210,7 @@ func CreatePod(ctx context.Context, user *db.User, image *db.Image, k8sClient *k
 			},
 		},
 	}, metav1.CreateOptions{})
-	if err != nil {
+	if err != nil && !k8serrors.IsAlreadyExists(err) {
 		log.Error("Failed to create pod ingress: %v", err)
 		return ctx.ServerError()
 	}
