@@ -41,8 +41,7 @@ func main() {
 	f.Group("/api", func() {
 		f.Group("/env/{uid}", func() {
 			f.Combo("").
-				Get(route.GetPod).
-				Post(route.CreatePod).
+				Get(route.CreatePod).
 				Delete(route.DeletePod)
 		}, route.Enver)
 	}, route.UserAuther)

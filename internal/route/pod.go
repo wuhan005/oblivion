@@ -51,7 +51,7 @@ func Enver(ctx context.Context) error {
 	return nil
 }
 
-func GetPod(ctx context.Context, user *db.User, image *db.Image) error {
+func CreatePod(ctx context.Context, user *db.User, image *db.Image, k8sClient *kubernetes.Clientset) error {
 	pods, err := db.Pods.Get(ctx.Request().Context(), db.GetPodsOptions{
 		UserID:  user.ID,
 		ImageID: image.ID,
@@ -61,14 +61,11 @@ func GetPod(ctx context.Context, user *db.User, image *db.Image) error {
 		return ctx.ServerError()
 	}
 
-	if len(pods) == 0 {
-		return ctx.Error(40400, "Pod not found")
+	if len(pods) != 0 {
+		return ctx.Success(pods[0])
 	}
-	return ctx.Success(pods[0])
-}
 
-func CreatePod(ctx context.Context, user *db.User, image *db.Image, k8sClient *kubernetes.Clientset) error {
-	pods, err := db.Pods.Get(ctx.Request().Context(), db.GetPodsOptions{
+	pods, err = db.Pods.Get(ctx.Request().Context(), db.GetPodsOptions{
 		UserID:  user.ID,
 		ImageID: image.ID,
 	})
