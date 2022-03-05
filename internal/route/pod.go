@@ -104,6 +104,17 @@ func CreatePod(ctx context.Context, user *db.User, image *db.Image, k8sClient *k
 			},
 		},
 		Spec: v1.PodSpec{
+			NodeSelector: map[string]string{
+				"challenge": image.UID,
+			},
+			Tolerations: []v1.Toleration{
+				{
+					Key:      "challenge",
+					Operator: v1.TolerationOpEqual,
+					Value:    image.UID,
+					Effect:   v1.TaintEffectNoSchedule,
+				},
+			},
 			Containers: []v1.Container{
 				{
 					Name:  podName,
